@@ -1,36 +1,38 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const dotenv = require('dotenv');
-const axios = require('axios');
+const { OpenAI } = require('openai');
 
-dotenv.config();
 const app = express();
+const port = process.env.PORT || 3000;
+
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 app.post('/chat', async (req, res) => {
-  const { message } = req.body;
   try {
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: message }],
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+    const userMessage = req.body.message;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'Bạn là trợ lý AI thông minh.' },
+        { role: 'user', content: userMessage },
+      ],
     });
 
-    res.json({ reply: response.data.choices[0].message.content });
+    const reply = completion.choices[0].message.content;
+    res.json({ reply });
   } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({ error: "Lỗi khi gọi API" });
+    console.error('Lỗi khi gọi API:', error);
+    res.status(500).json({ error: 'Lỗi server khi gọi API OpenAI' });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server đang chạy tại http://localhost:${port}`);
 });
